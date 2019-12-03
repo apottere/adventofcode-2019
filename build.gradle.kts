@@ -17,6 +17,7 @@ dependencies {
 
     testImplementation("org.amshove.kluent:kluent:1.58")
     testImplementation("org.junit.jupiter:junit-jupiter:5.5.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.5.2")
 }
 
 tasks.withType<KotlinCompile> {

@@ -7,7 +7,7 @@ class Day2: Day<List<Int>>(2, {
     format { reader ->
         reader.lineSequence()
             .flatMap { it.splitToSequence(',') }
-            .dropWhile { it.isBlank() }
+            .filter { it.isNotBlank() }
             .map { it.toInt() }
             .toList()
     }

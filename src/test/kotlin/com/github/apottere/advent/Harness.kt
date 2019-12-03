@@ -141,12 +141,15 @@ class AdventTestEngine: HierarchicalTestEngine<JupiterEngineExecutionContext>() 
         val selections = selectors.flatMap { selector ->
             when(selector) {
                 is ClassSelector -> {
-                    listOf(Selection(selector.javaClass))
+                    when {
+                        isDayClass(selector.javaClass) -> listOf(Selection(selector.javaClass))
+                        else -> listOf()
+                    }
                 }
                 is ClasspathRootSelector -> {
                     val classes = ReflectionSupport.findAllClassesInClasspathRoot(
                         selector.classpathRoot,
-                        { it != Day::class.java && Day::class.java.isAssignableFrom(it) },
+                        { isDayClass(it) },
                         { true }
                     )
 
@@ -210,12 +213,7 @@ class AdventTestDescriptor(
     }
 }
 
-data class Selection(val testClass: Class<*>, val uniqueId: String? = null) {
-    init {
-        if(!Day::class.java.isAssignableFrom(testClass)) {
-            throw IllegalArgumentException("Test class does not implement Day: ${testClass.name}")
-        }
-    }
-}
+fun isDayClass(testClass: Class<*>) = testClass != Day::class.java && Day::class.java.isAssignableFrom(testClass)
 
+data class Selection(val testClass: Class<*>, val uniqueId: String? = null)
 data class TestSuite(val instance: Day<*>, val tests: AdventContainerDescriptor)
