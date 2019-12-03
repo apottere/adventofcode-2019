@@ -60,12 +60,11 @@ fun intcodeCompute(register: MutableList<Int>, result: (register: List<Int>) -> 
     loop@ while(true) {
         when(val opcode = register[cursor]) {
             99 -> break@loop
-            1, 2 -> {
+            else -> {
+                val operation = intcodeOperations[opcode] ?: throw IllegalStateException("Invalid opcode at position ${cursor}: $opcode")
                 val (arg1Index, arg2Index, outputIndex) = register.subList(cursor + 1, cursor + 4)
-                val operation = intcodeOperations[opcode] ?: throw IllegalStateException("Missing operator for opcode: $opcode")
                 register[outputIndex] = operation(register[arg1Index], register[arg2Index])
             }
-            else -> throw IllegalArgumentException("Invalid opcode at position ${cursor}: $opcode")
         }
 
         cursor += 4
