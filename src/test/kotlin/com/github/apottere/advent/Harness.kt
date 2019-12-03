@@ -1,13 +1,9 @@
 package com.github.apottere.advent
 
 import org.amshove.kluent.shouldEqual
-import org.junit.jupiter.api.extension.InvocationInterceptor
 import org.junit.jupiter.engine.config.CachingJupiterConfiguration
 import org.junit.jupiter.engine.config.DefaultJupiterConfiguration
 import org.junit.jupiter.engine.config.JupiterConfiguration
-import org.junit.jupiter.engine.descriptor.JupiterEngineDescriptor
-import org.junit.jupiter.engine.execution.InvocationInterceptorChain
-import org.junit.jupiter.engine.execution.InvocationInterceptorChain.InterceptorCall
 import org.junit.jupiter.engine.execution.JupiterEngineExecutionContext
 import org.junit.platform.commons.annotation.Testable
 import org.junit.platform.commons.support.ReflectionSupport
@@ -21,9 +17,6 @@ import org.junit.platform.engine.support.descriptor.PackageSource
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine
 import org.junit.platform.engine.support.hierarchical.Node
 import java.io.BufferedReader
-import java.lang.RuntimeException
-import java.lang.reflect.Method
-import java.util.function.Predicate
 
 @DslMarker
 annotation class HarnessDsl

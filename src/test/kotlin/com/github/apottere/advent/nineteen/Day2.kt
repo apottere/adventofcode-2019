@@ -1,7 +1,6 @@
 package com.github.apottere.advent.nineteen
 
 import com.github.apottere.advent.Day
-import java.lang.RuntimeException
 
 
 class Day2: Day<List<Int>>(2, {
