@@ -66,7 +66,7 @@ fun traceWire(instructions: List<String>): Sequence<Coordinate> {
             else -> throw IllegalArgumentException("Invalid direction: $direction")
         }
 
-        1.rangeTo(distance).asSequence().map {
+        1.rangeTo(distance).asSequence().constrainOnce().map {
             current = transform(current)
             current
         }
