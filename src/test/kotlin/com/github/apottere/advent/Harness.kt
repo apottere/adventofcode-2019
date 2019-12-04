@@ -134,6 +134,7 @@ abstract class Day<T>(private val day: Int, configure: DayDsl<T>.() -> Unit) {
                     throw NoSolutionException("No answer supplied.  Try this possible answer and record it if it works: $result")
                 } else {
                     result `should equal` answer
+                    println("Day #${day} Problem #${number} Answer: $result")
                 }
             }
 
