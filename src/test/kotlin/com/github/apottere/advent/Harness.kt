@@ -1,22 +1,18 @@
 package com.github.apottere.advent
 
 import org.amshove.kluent.shouldEqual
-import org.junit.jupiter.engine.config.CachingJupiterConfiguration
-import org.junit.jupiter.engine.config.DefaultJupiterConfiguration
-import org.junit.jupiter.engine.config.JupiterConfiguration
-import org.junit.jupiter.engine.execution.JupiterEngineExecutionContext
 import org.junit.platform.commons.annotation.Testable
 import org.junit.platform.commons.support.ReflectionSupport
 import org.junit.platform.engine.*
 import org.junit.platform.engine.discovery.ClassSelector
 import org.junit.platform.engine.discovery.ClasspathRootSelector
-import org.junit.platform.engine.support.descriptor.AbstractTestDescriptor
-import org.junit.platform.engine.support.descriptor.ClassSource
-import org.junit.platform.engine.support.descriptor.FilePosition
-import org.junit.platform.engine.support.descriptor.PackageSource
+import org.junit.platform.engine.support.descriptor.*
+import org.junit.platform.engine.support.hierarchical.EngineExecutionContext
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine
 import org.junit.platform.engine.support.hierarchical.Node
+import org.junit.platform.engine.support.hierarchical.ThrowableCollector
 import java.io.BufferedReader
+import java.io.File
 
 @DslMarker
 annotation class HarnessDsl
@@ -64,15 +60,9 @@ data class Context<T>(
     val problems: MutableList<ProblemWithLocation<T>> = mutableListOf()
 )
 
-fun callerLocation(): ClassSource {
+fun callerLocation(): TestSource {
     val location = RuntimeException().stackTrace[2]
-    val rootClass = findRootClass(ReflectionSupport.tryToLoadClass(location.className).get())
-    return ClassSource.from(rootClass.name, FilePosition.from(location.lineNumber))
-}
-
-fun findRootClass(subClass: Class<*>): Class<*> = when(val enclosingClass = subClass.enclosingClass) {
-    null -> subClass
-    else -> findRootClass(enclosingClass)
+    return FileSource.from(File(location.className.replace("\\.[^.]*$".toRegex(), "").replace(".", "/"), location.fileName!!), FilePosition.from(location.lineNumber))
 }
 
 @Testable
@@ -132,11 +122,10 @@ abstract class Day<T>(private val day: Int, configure: DayDsl<T>.() -> Unit) {
     }
 }
 
-class AdventTestEngine: HierarchicalTestEngine<JupiterEngineExecutionContext>() {
+class AdventTestEngine: HierarchicalTestEngine<AdventEngineContext>() {
     override fun getId() = "advent"
 
     override fun discover(discoveryRequest: EngineDiscoveryRequest, uniqueId: UniqueId): TestDescriptor {
-        val configuration = CachingJupiterConfiguration(DefaultJupiterConfiguration(discoveryRequest.configurationParameters))
         val selectors = discoveryRequest.getSelectorsByType(DiscoverySelector::class.java)
         val selections = selectors.flatMap { selector ->
             when(selector) {
@@ -165,55 +154,48 @@ class AdventTestEngine: HierarchicalTestEngine<JupiterEngineExecutionContext>() 
             it.testClass to TestSuite(instance, instance.getTestDescriptors(uniqueId))
         }
 
-        return AdventRootContainerDescriptor(uniqueId, tests.values.map { it.tests }, configuration)
+        return AdventRootContainerDescriptor(uniqueId, tests.values.map { it.tests })
     }
 
-    override fun createExecutionContext(request: ExecutionRequest): JupiterEngineExecutionContext {
-        return JupiterEngineExecutionContext(
-            request.engineExecutionListener,
-            (request.rootTestDescriptor as AdventRootContainerDescriptor).configuration
-        )
+    override fun createExecutionContext(request: ExecutionRequest): AdventEngineContext {
+        return AdventEngineContext()
     }
 }
 
-class AdventRootContainerDescriptor(
-    uniqueId: UniqueId,
-    children: List<TestDescriptor>,
-    val configuration: JupiterConfiguration
-): AbstractTestDescriptor(uniqueId, "All Days", PackageSource.from(AdventRootContainerDescriptor::class.java.`package`)) {
+class AdventRootContainerDescriptor(uniqueId: UniqueId, children: List<TestDescriptor>): EngineDescriptor(uniqueId, "All Days"), Node<AdventEngineContext> {
+    init {
+        children.forEach { addChild(it) }
+    }
+
+    override fun getExecutionMode(): Node.ExecutionMode = Node.ExecutionMode.CONCURRENT
+}
+
+class AdventContainerDescriptor(uniqueId: UniqueId, displayName: String, source: TestSource?, children: List<TestDescriptor>): AbstractTestDescriptor(uniqueId, displayName, source), Node<AdventEngineContext> {
     init {
         children.forEach { addChild(it) }
     }
     override fun getType() = TestDescriptor.Type.CONTAINER
 }
 
-class AdventContainerDescriptor(
-    uniqueId: UniqueId,
-    displayName: String,
-    source: TestSource?,
-    children: List<TestDescriptor>
-): AbstractTestDescriptor(uniqueId, displayName, source) {
-    init {
-        children.forEach { addChild(it) }
-    }
-    override fun getType() = TestDescriptor.Type.CONTAINER
-}
-
-class AdventTestDescriptor(
-    uniqueId: UniqueId,
-    displayName: String,
-    source: TestSource?,
-    private val testBody: () -> Unit
-): AbstractTestDescriptor(uniqueId, displayName, source), Node<JupiterEngineExecutionContext> {
-
+class AdventTestDescriptor(uniqueId: UniqueId, displayName: String, source: TestSource?, private val testBody: () -> Unit): AbstractTestDescriptor(uniqueId, displayName, source), Node<AdventEngineContext> {
     override fun getType() = TestDescriptor.Type.TEST
-    override fun execute(context: JupiterEngineExecutionContext, dynamicTestExecutor: Node.DynamicTestExecutor): JupiterEngineExecutionContext {
-        this.testBody()
+    override fun execute(context: AdventEngineContext, dynamicTestExecutor: Node.DynamicTestExecutor): AdventEngineContext {
+        context.throwableCollector.execute {
+            this.testBody()
+        }
         return context
     }
+}
+
+class AdventEngineContext: EngineExecutionContext {
+    val throwableCollector = ThrowableCollector { false }
 }
 
 fun isDayClass(testClass: Class<*>) = testClass != Day::class.java && Day::class.java.isAssignableFrom(testClass)
 
 data class Selection(val testClass: Class<*>, val uniqueId: String? = null)
 data class TestSuite(val instance: Day<*>, val tests: AdventContainerDescriptor)
+
+fun tmpLog(msg: String) {
+    File("/tmp/test-output.txt").appendText(msg + "\n")
+}
