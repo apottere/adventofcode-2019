@@ -23,6 +23,8 @@ class Day3: Day<Pair<List<String>, List<String>>>(3, {
                 .min()
                 ?: throw IllegalStateException("No intersections found!")
         }
+
+        answer(2427)
     }
 
     problem(2) {
@@ -34,6 +36,8 @@ class Day3: Day<Pair<List<String>, List<String>>>(3, {
                 .map { shortestWireLengthToCoord(input.first, it) + shortestWireLengthToCoord(input.second, it) }
                 .min()!!
         }
+
+        answer(27890)
     }
 })
 

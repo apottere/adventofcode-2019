@@ -21,6 +21,8 @@ class Day4: Day<Pair<Int, Int>>(4, {
                 .filter { numberMatchesFormat(it) { group -> group.size >= 2 } }
                 .count()
         }
+
+        answer(1640)
     }
 
     problem(2) {
@@ -31,6 +33,8 @@ class Day4: Day<Pair<Int, Int>>(4, {
                 .filter { numberMatchesFormat(it) { group -> group.size == 2 } }
                 .count()
         }
+
+        answer(1126)
     }
 })
 

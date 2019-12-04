@@ -17,6 +17,8 @@ class Day1: Day<Sequence<Long>>(1, {
         solution {
             it.input.map(::calculateFuel).sum()
         }
+
+        answer(3317970L)
     }
 
     problem(2) {
@@ -31,6 +33,8 @@ class Day1: Day<Sequence<Long>>(1, {
                 }
                 .sum()
         }
+
+        answer(4974073L)
     }
 })
 

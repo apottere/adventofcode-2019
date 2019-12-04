@@ -1,6 +1,6 @@
 package com.github.apottere.advent
 
-import org.amshove.kluent.shouldEqual
+import org.amshove.kluent.`should equal`
 import org.junit.platform.commons.annotation.Testable
 import org.junit.platform.commons.support.ReflectionSupport
 import org.junit.platform.engine.*
@@ -10,9 +10,10 @@ import org.junit.platform.engine.support.descriptor.*
 import org.junit.platform.engine.support.hierarchical.EngineExecutionContext
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine
 import org.junit.platform.engine.support.hierarchical.Node
-import org.junit.platform.engine.support.hierarchical.ThrowableCollector
 import java.io.BufferedReader
 import java.io.File
+import java.io.PrintStream
+import java.io.PrintWriter
 
 @DslMarker
 annotation class HarnessDsl
@@ -25,25 +26,30 @@ class DayDsl<T>(private val context: Context<T>) {
     }
 
     fun problem(problem: Int, body: ProblemDsl<T>.() -> Unit) {
-        val (tests, solution) = ProblemDsl<T>().also(body)
+        val (tests, solution, answer) = ProblemContext<T>().also { ProblemDsl(it).body() }
         context.problems.add(
             Problem(
                 problem,
                 tests,
-                solution ?: throw IllegalArgumentException("`solution` must be provided in problem DSL!")
+                solution ?: throw IllegalArgumentException("`solution` must be provided in problem DSL!"),
+                answer
             ) to callerLocation()
         )
     }
 }
 
 @HarnessDsl
-data class ProblemDsl<T>(val tests: MutableList<TestWithLocation> = mutableListOf(), var solution: SolutionWithLocation<T>? = null) {
+data class ProblemDsl<T>(private val context: ProblemContext<T>) {
     fun test(test: Test) {
-        tests.add(test to callerLocation())
+        context.tests.add(test to callerLocation())
     }
 
     fun solution(solution: Solution<T>) {
-        this.solution = solution to callerLocation()
+        context.solution = solution to callerLocation()
+    }
+
+    fun answer(answer: Any?) {
+        context.answer = answer
     }
 }
 
@@ -53,12 +59,23 @@ typealias TestWithLocation = Pair<Test, TestSource>
 data class Input<T>(val input: T, val testing: Boolean = false)
 typealias Solution<T> = (input: Input<T>) -> Any
 typealias SolutionWithLocation<T> = Pair<Solution<T>, TestSource>
-typealias Problem<T> = Triple<Int, List<TestWithLocation>, SolutionWithLocation<T>>
+data class Problem<T>(
+    val number: Int,
+    val tests: List<TestWithLocation>,
+    val solution: SolutionWithLocation<T>,
+    val answer: Any?
+)
 typealias ProblemWithLocation<T> = Pair<Problem<T>, TestSource>
 data class Context<T>(
     var formatter: Formatter<T>? = null,
     val problems: MutableList<ProblemWithLocation<T>> = mutableListOf()
 )
+data class ProblemContext<T>(
+    val tests: MutableList<TestWithLocation> = mutableListOf(),
+    var solution: SolutionWithLocation<T>? = null,
+    var answer: Any? = null
+)
+
 
 fun callerLocation(): TestSource {
     val location = RuntimeException().stackTrace[2]
@@ -86,7 +103,7 @@ abstract class Day<T>(private val day: Int, configure: DayDsl<T>.() -> Unit) {
 
         val dayId = uniqueId.append("day", day.toString())
         val problemDescriptors = problems.map { (problem, problemLocation) ->
-            val (number, tests, solution) = problem
+            val (number, tests, solution, answer) = problem
             val (solutionBody, solutionLocation) = solution
             val problemId = dayId.append("problem", number.toString())
 
@@ -102,7 +119,7 @@ abstract class Day<T>(private val day: Int, configure: DayDsl<T>.() -> Unit) {
                     }
                     println("Result: $result")
 
-                    result shouldEqual expected
+                    result `should equal` expected
                 }
             }
 
@@ -112,7 +129,12 @@ abstract class Day<T>(private val day: Int, configure: DayDsl<T>.() -> Unit) {
                     ?: throw IllegalArgumentException("Input file not found: $inputFile")).bufferedReader().use {
                     solutionBody(Input(formatter(it)))
                 }
-                println("Answer: $result")
+
+                if(answer == null) {
+                    throw NoSolutionException("No answer supplied.  Try this possible answer and record it if it works: $result")
+                } else {
+                    result `should equal` answer
+                }
             }
 
             AdventContainerDescriptor(problemId, "Problem #${number}", problemLocation, testDescriptors + listOf(solutionDescriptor))
@@ -180,22 +202,23 @@ class AdventContainerDescriptor(uniqueId: UniqueId, displayName: String, source:
 class AdventTestDescriptor(uniqueId: UniqueId, displayName: String, source: TestSource?, private val testBody: () -> Unit): AbstractTestDescriptor(uniqueId, displayName, source), Node<AdventEngineContext> {
     override fun getType() = TestDescriptor.Type.TEST
     override fun execute(context: AdventEngineContext, dynamicTestExecutor: Node.DynamicTestExecutor): AdventEngineContext {
-        context.throwableCollector.execute {
-            this.testBody()
-        }
+        this.testBody()
         return context
     }
 }
 
-class AdventEngineContext: EngineExecutionContext {
-    val throwableCollector = ThrowableCollector { false }
-}
+class AdventEngineContext: EngineExecutionContext
 
 fun isDayClass(testClass: Class<*>) = testClass != Day::class.java && Day::class.java.isAssignableFrom(testClass)
 
 data class Selection(val testClass: Class<*>, val uniqueId: String? = null)
 data class TestSuite(val instance: Day<*>, val tests: AdventContainerDescriptor)
 
-fun tmpLog(msg: String) {
-    File("/tmp/test-output.txt").appendText(msg + "\n")
+class NoSolutionException(msg: String): AssertionError(msg) {
+    override fun getStackTrace(): Array<StackTraceElement> {
+        return arrayOf()
+    }
+    override fun printStackTrace(s: PrintWriter) { }
+    override fun printStackTrace() {}
+    override fun printStackTrace(s: PrintStream) {}
 }

@@ -31,6 +31,8 @@ class Day2: Day<List<Int>>(2, {
                 }
             }
         }
+
+        answer(4484226)
     }
 
     problem(2) {
@@ -47,6 +49,8 @@ class Day2: Day<List<Int>>(2, {
 
             (noun * 100) + verb
         }
+
+        answer(5696)
     }
 })
 
