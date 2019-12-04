@@ -17,8 +17,11 @@ class Day4: Day<Pair<Int, Int>>(4, {
         test("111110-111112" to 2)
 
         solution { (input) ->
-            input.first.rangeTo(input.second)
-                .filter { numberMatchesFormat(it) { group -> group.size >= 2 } }
+            input.first.rangeTo(input.second).asSequence()
+                .map { numberToDigits(it) }
+                .filter { it.size == 6 }
+                .filter { digitsIncrease(it) }
+                .filter { digitsContainGroup(it) { group -> group.size >= 2 } }
                 .count()
         }
 
@@ -29,8 +32,11 @@ class Day4: Day<Pair<Int, Int>>(4, {
         test("111110-111112" to 0)
 
         solution { (input) ->
-            input.first.rangeTo(input.second)
-                .filter { numberMatchesFormat(it) { group -> group.size == 2 } }
+            input.first.rangeTo(input.second).asSequence()
+                .map { numberToDigits(it) }
+                .filter { it.size == 6 }
+                .filter { digitsIncrease(it) }
+                .filter { digitsContainGroup(it) { group -> group.size == 2 } }
                 .count()
         }
 
@@ -38,12 +44,8 @@ class Day4: Day<Pair<Int, Int>>(4, {
     }
 })
 
-fun numberMatchesFormat(number: Int, matchDoubles: (group: List<Int>) -> Boolean): Boolean {
-    if(number == 0) {
-        return false
-    }
-
-    val digits = generateSequence(number.absoluteValue to null as Int?) { (currentNumber, _) ->
+fun numberToDigits(number: Int): List<Int> {
+    return generateSequence(number.absoluteValue to null as Int?) { (currentNumber, _) ->
         if(currentNumber == 0) {
             return@generateSequence null
         }
@@ -54,23 +56,11 @@ fun numberMatchesFormat(number: Int, matchDoubles: (group: List<Int>) -> Boolean
         .filterNotNull()
         .toList()
         .asReversed()
-
-    if(digits.size != 6) {
-        return false
-    }
-
-    // Check for increasing digits
-    if(!foldWithPrevious(digits, true) { success, previous, current -> success && previous <= current }) {
-        return false
-    }
-
-    // Since digits are ever-increasing, all instances of the same number must be sequential
-    if(digits.groupBy { it }.values.none(matchDoubles)) {
-        return false
-    }
-
-    return true
 }
+
+fun digitsIncrease(digits: List<Int>) = foldWithPrevious(digits, true) { success, previous, current -> success && previous <= current }
+// Since digits are ever-increasing, all instances of the same number must be sequential
+fun digitsContainGroup(digits: List<Int>, matchGroup: (group: List<Int>) -> Boolean) = digits.groupBy { it }.values.any(matchGroup)
 
 fun <T, R> foldWithPrevious(iterable: Iterable<T>, initial: R, operation: (R, previous: T, current: T) -> R): R {
     return iterable.fold(initial to null as T?) { (result, previous), current ->
